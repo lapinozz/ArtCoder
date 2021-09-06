@@ -1,12 +1,16 @@
 import argparse
 import utils as utils
 from Artcoder import artcoder
+from test import test
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--style_img_path', help="path to input style target (default: './style/texture1.1.jpg')", type=str,
-                        default='./style/texture1.1.jpg')
+                        #default='./style/texture3.jpg')
+                        #default='./style/texture1.1.jpg')
+                        default='./style/st.jpg')
     parser.add_argument('--content_img_path', help="path to input content target (default: './content/boy.jpg')", type=str,
+                        #default='./content/lapinozz.jpg')
                         default='./content/boy.jpg')
     parser.add_argument('--code_img_path', help="path to input code target (default: './code/boy.jpg')", type=str,
                         default='./code/boy.jpg')
@@ -14,7 +18,7 @@ if __name__ == '__main__':
                         default='./output/')
     parser.add_argument('--learning_rate',
                         help='learning rate (default: 0.01)',
-                        type=int, default=0.01)
+                        type=int, default=0.005)
     parser.add_argument('--style_weight', help='style_weight', type=int, default=1e15)
     parser.add_argument('--content_weight', help='content_weight', type=int, default=1e8)
     parser.add_argument('--code_weight', help='code_weight', type=int, default=1e12)
@@ -50,6 +54,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     utils.print_options(opt=args)
+
+    #test()
 
     artcoder(STYLE_IMG_PATH=args.style_img_path, CONTENT_IMG_PATH=args.content_img_path, CODE_PATH=args.code_img_path,
              OUTPUT_DIR=args.output_dir, LEARNING_RATE=args.learning_rate, CONTENT_WEIGHT=args.content_weight,

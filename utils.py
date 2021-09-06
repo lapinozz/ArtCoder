@@ -7,6 +7,8 @@ import pandas as pd
 from torchvision import transforms
 import shutil
 
+from timeit import default_timer as timer
+
 unloader = transforms.ToPILImage()
 load = transforms.ToTensor()
 
@@ -59,29 +61,57 @@ def gram_matrix(y):
     return gram
 
 
-def get_action_matrix(img_target, img_code, module_size=16, IMG_SIZE=592, Dis_b=50, Dis_w=200):
-    img_code = np.require(np.asarray(img_code.convert('L')), dtype='uint8', requirements=['O', 'W'])
-    img_target = np.require(np.array(img_target.convert('L')), dtype='uint8', requirements=['O', 'W'])
+def get_action_matrix_old(img_target, ideal_result, module_size=16, IMG_SIZE=592, Dis_b=50, Dis_w=200, save=False):
+    time = timer()
+    img_target = np.require(np.array(img_target), dtype='uint8', requirements=['O', 'W'])
+    #print("img_target: {}".format(timer() - time))    
 
-    ideal_result = get_binary_result(img_code, module_size)
+
+    time = timer()
     center_mat = get_center_pixel(img_target, module_size)
+    #print("center_mat: {}".format(timer() - time))    
+    
+    time = timer()
     error_module = get_error_module(center_mat, code_result=ideal_result,
                                     threshold_b=Dis_b,
                                     threshold_w=Dis_w)
-    return error_module, ideal_result
+    #print("error_module: {}".format(timer() - time)) 
 
+    if save:
+        Image.fromarray(np.uint8(img_target)).save("./test/target.png")
+        Image.fromarray(np.uint8(ideal_result*255)).save("./test/ideal.png")
+        Image.fromarray(np.uint8(center_mat)).save("./test/center.png")
+        Image.fromarray(np.uint8(error_module*255)).save("./test/error.png")
 
-def get_binary_result(img_code, module_size, module_number=37):
-    binary_result = np.zeros((module_number, module_number))
-    for j in range(module_number):
-        for i in range(module_number):
-            module = img_code[i * module_size:(i + 1) * module_size, j * module_size:(j + 1) * module_size]
-            module_color = np.around(np.mean(module), decimals=2)
-            if module_color < 128:
-                binary_result[i, j] = 0
-            else:
-                binary_result[i, j] = 1
-    return binary_result
+        print("sum {}".format(np.sum(error_module)))
+
+    return error_module
+
+def get_action_matrix(img_target, ideal, ideal_inv, module_size=16, IMG_SIZE=592, Dis_b=50, Dis_w=200, save=False):
+    time = timer()
+
+    img_target = transforms.Grayscale()(img_target)
+
+   # print(img_target.shape)
+
+    centers = img_target.squeeze(0).squeeze(0).unfold(0, 16, 16).unfold(1, 16, 16)
+
+    i = centers[..., 5:12, 5:12].mean([-1, -2])
+
+    ons = ideal * i + ideal_inv;
+    offs = ideal_inv  * i;
+
+    dis_b = Dis_b / 255;
+    dis_w = Dis_w / 255;
+
+    ons = torch.where(ons > dis_w, 0.0, 1.0)
+    offs = torch.where(offs < dis_b, 0.0, 1.0)
+
+    errors = offs + ons
+
+    #print("error_module: {}".format(timer() - time)) 
+
+    return errors
 
 
 def get_center_pixel(img_target, module_size):
@@ -108,6 +138,23 @@ def get_error_module(center_mat, code_result, threshold_b, threshold_w):
                 error_module[i, j] = 1
     return error_module
 
+def get_ideal_result(img_code, module_size=16):
+    img_code = np.require(np.asarray(img_code.convert('L')), dtype='uint8', requirements=['O', 'W'])
+    return get_binary_result(img_code, module_size)
+
+
+def get_binary_result(img_code, module_size, module_number=37):
+    binary_result = np.zeros((module_number, module_number))
+    for j in range(module_number):
+        for i in range(module_number):
+            module = img_code[i * module_size:(i + 1) * module_size, j * module_size:(j + 1) * module_size]
+            module_color = np.around(np.mean(module), decimals=2)
+            if module_color < 128:
+                binary_result[i, j] = 0
+            else:
+                binary_result[i, j] = 1
+    return binary_result
+
 
 def get_target(binary_result, b_robust, w_robust, module_num=37, module_size=16):
     img_size = module_size * module_num
@@ -128,7 +175,7 @@ def get_target(binary_result, b_robust, w_robust, module_num=37, module_size=16)
 
 def save_image_epoch(tensor, path, name, code_pil, addpattern=True):
     """Save a single image."""
-    image = tensor.cpu().clone()
+    image = tensor.clone()
     image = image.squeeze(0)
     image = unloader(image)
     if addpattern == True:
@@ -137,7 +184,7 @@ def save_image_epoch(tensor, path, name, code_pil, addpattern=True):
 
 
 def tensor_to_PIL(tensor):
-    image = tensor.cpu().clone()
+    image = tensor.clone()
     image = image.squeeze(0)
     image = unloader(image)
     return image
