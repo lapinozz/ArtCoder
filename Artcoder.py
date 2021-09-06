@@ -6,7 +6,13 @@ import torch.optim as optim
 import numpy as np
 import torch
 from SS_layer import SSlayer
+from PIL import Image
 
+from torchviz import make_dot
+
+from timeit import default_timer as timer
+
+epoch = 0
 
 def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
              LEARNING_RATE=0.01, CONTENT_WEIGHT=1e8, STYLE_WEIGHT=1e15, CODE_WEIGHT=1e15, MODULE_SIZE=16, MODULE_NUM=37,
@@ -31,6 +37,11 @@ def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
     code_img = utils.load_image(filename=CODE_PATH, size=IMAGE_SIZE)
     init_img = utils.add_pattern(content_img, code_img)
 
+    torch.backends.cudnn.benchmark = True
+
+    #torch.autograd.set_detect_anomaly(False)
+    #torch.autograd.profiler.profile(False)
+    #torch.autograd.profiler.emit_nvtx(False)
 
     style_img = transform(style_img)
     content_img = transform(content_img)
@@ -49,70 +60,126 @@ def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
     y = init_img.detach()  # y is the target output. Optimized start from the content image.
     y = y.requires_grad_()  # let y to require grad
 
-    optimizer = optim.Adam([y], lr=LEARNING_RATE)  # let optimizer to optimize the tensor y
+    optimizer = optim.AdamW([y], lr=LEARNING_RATE)  # let optimizer to optimize the tensor y
 
-    error_matrix, ideal_result = utils.get_action_matrix(
-        img_target=utils.tensor_to_PIL(y),
-        img_code=code_img,
+    ideal_result = utils.get_ideal_result(
+        img_code=code_img
+    )
+
+    ideal_result = torch.tensor(ideal_result.astype('float32'), device=torch.device('cuda:0'))
+    ideal_result_inv = (1 - ideal_result)
+
+    error_matrix = utils.get_action_matrix(
+        img_target=y,
+        ideal=ideal_result,
+        ideal_inv=ideal_result_inv,
         Dis_b=Dis_b, Dis_w=Dis_w
     )
     code_target = ss_layer(utils.get_target(ideal_result, b_robust=Correct_b, w_robust=Correct_w))
 
+    trainingTimeStart = timer()
+    epochTimeStart = timer()
+
+    print(torch.cuda.get_device_name(0))
+
+    def debug(string):
+        if False:
+            print(string)
+
+    def closure(code_target=code_target):
+
+        time = timer()
+        optimizer.zero_grad()
+        y.data.clamp_(0, 1)
+        debug("init: {}".format(timer() - time))
+
+        time = timer()
+        features_y = vgg(y)  # feature maps of y extracted from VGG
+        debug("feature: {}".format(timer() - time))
+        time = timer()
+        gram_style_y = [utils.gram_matrix(i) for i in
+                        features_y]  # gram matrixs of feature_y in relu1_2,2_2,3_3,4_3
+        debug("gram: {}".format(timer() - time))
+
+        fc = features_content.relu3_3  # content target in relu4_3
+        fy = features_y.relu3_3  # y in relu4_3
+
+        time = timer()
+        style_loss = 0  # add style_losses in relu1_2,2_2,3_3,4_3
+        for i in [0, 1, 2, 3]:
+            style_loss += mse_loss(gram_style_y[i], gram_style[i])
+        style_loss = STYLE_WEIGHT * style_loss
+        debug("style_loss: {}".format(timer() - time))
+
+        time = timer()
+        code_y = ss_layer(y)
+        debug("ss_layer: {}".format(timer() - time))
+
+        if USE_ACTIVATION_MECHANISM == 1:
+            time = timer()
+            error_matrix = utils.get_action_matrix(
+                img_target=y,
+                ideal=ideal_result,
+                ideal_inv=ideal_result_inv,
+                Dis_b=Dis_b, Dis_w=Dis_w, save=(epoch > 200000))
+            debug("action 1: {}".format(timer() - time))
+            time = timer()
+            activate_num = error_matrix.sum()
+            activate_weight = error_matrix
+            code_y = code_y * activate_weight
+            code_target = code_target * activate_weight
+            debug("action 2: {}".format(timer() - time))
+
+
+            if epoch > 200000:
+                quit()
+        else:
+            code_y = code_y.cpu()
+            code_target = code_target.cpu()
+            activate_num = MODULE_NUM * MODULE_NUM
+
+        time = timer()
+        code_loss = CODE_WEIGHT * mse_loss(code_target, code_y)
+        content_loss = CONTENT_WEIGHT * mse_loss(fc, fy)  # content loss
+        debug("code/content loss: {}".format(timer() - time))
+
+        # tv_loss = TV_WEIGHT * (torch.sum(torch.abs(y[:, :, :, :-1] - y[:, :, :, 1:])) +
+        #                        torch.sum(torch.abs(y[:, :, :-1, :] - y[:, :, 1:, :])))
+
+        time = timer()
+        total_loss = style_loss + code_loss + content_loss
+        #make_dot(total_loss).render("./rnn_torchviz", format="png")
+        total_loss.backward(retain_graph=True)
+        debug("backward: {}".format(timer() - time))
+
+
+        if epoch % 20 == 0:
+            print(
+                "Epoch {}: Style Loss : {:4f}. Content Loss: {:4f}. Code Loss: {:4f}. Activated module number: {:4.2f}. Discriminate_b：{:4.2f}. Discriminate_w：{:4.2f}.".format(
+                    epoch, style_loss, content_loss, code_loss, activate_num, Dis_b, Dis_w)
+            )
+
+            nonlocal epochTimeStart
+            currentTime = timer()
+            totalElapsedTime = currentTime - trainingTimeStart
+            averageEpoch = currentTime - epochTimeStart
+            epochTimeStart = currentTime
+
+            print("Total time: {}, Average Epoch Time: {}: Global Average Epoch Time: {} Time Left: {}".format(totalElapsedTime, averageEpoch / 20, totalElapsedTime / (epoch + 1), (EPOCHS - epoch) * totalElapsedTime / (epoch + 1)))
+
+        if epoch % 200 == 0:
+            img_name = 'epoch=' + str(epoch) + '__Wstyle=' + str("%.1e" % STYLE_WEIGHT) + '__Wcode=' + str(
+                "%.1e" % CODE_WEIGHT) + '__Wcontent' + str(
+                "%.1e" % CONTENT_WEIGHT) + '.jpg'
+            utils.save_image_epoch(y, OUTPUT_DIR, img_name, code_img, addpattern=True)
+            print('Save output: ' + img_name)
+        
+        return total_loss
+
     print(" Start training =============================================")
-    for epoch in range(EPOCHS):
+    for e in range(EPOCHS):
 
-        def closure(code_target=code_target):
-
-            optimizer.zero_grad()
-            y.data.clamp_(0, 1)
-            features_y = vgg(y)  # feature maps of y extracted from VGG
-            gram_style_y = [utils.gram_matrix(i) for i in
-                            features_y]  # gram matrixs of feature_y in relu1_2,2_2,3_3,4_3
-
-            fc = features_content.relu3_3  # content target in relu4_3
-            fy = features_y.relu3_3  # y in relu4_3
-
-            style_loss = 0  # add style_losses in relu1_2,2_2,3_3,4_3
-            for i in [0, 1, 2, 3]:
-                style_loss += mse_loss(gram_style_y[i], gram_style[i])
-            style_loss = STYLE_WEIGHT * style_loss
-
-            code_y = ss_layer(y)
-
-            if USE_ACTIVATION_MECHANISM == 1:
-                error_matrix, ideal_result = utils.get_action_matrix(
-                    img_target=utils.tensor_to_PIL(y),
-                    img_code=code_img,
-                    Dis_b=Dis_b, Dis_w=Dis_w)
-                activate_num = np.sum(error_matrix)
-                activate_weight = torch.tensor(error_matrix.astype('float32'))
-                code_y = code_y.cpu() * activate_weight
-                code_target = code_target.cpu() * activate_weight
-            else:
-                code_y = code_y.cpu()
-                code_target = code_target.cpu()
-                activate_num = MODULE_NUM * MODULE_NUM
-
-            code_loss = CODE_WEIGHT * mse_loss(code_target.cuda(), code_y.cuda())
-            content_loss = CONTENT_WEIGHT * mse_loss(fc, fy)  # content loss
-
-            # tv_loss = TV_WEIGHT * (torch.sum(torch.abs(y[:, :, :, :-1] - y[:, :, :, 1:])) +
-            #                        torch.sum(torch.abs(y[:, :, :-1, :] - y[:, :, 1:, :])))
-
-            total_loss = style_loss + code_loss + content_loss
-            total_loss.backward(retain_graph=True)
-
-            if epoch % 20 == 0:
-                print(
-                    "Epoch {}: Style Loss : {:4f}. Content Loss: {:4f}. Code Loss: {:4f}. Activated module number: {:4.2f}. Discriminate_b：{:4.2f}. Discriminate_w：{:4.2f}.".format(
-                        epoch, style_loss, content_loss, code_loss, activate_num, Dis_b, Dis_w)
-                )
-            if epoch % 200 == 0:
-                img_name = 'epoch=' + str(epoch) + '__Wstyle=' + str("%.1e" % STYLE_WEIGHT) + '__Wcode=' + str(
-                    "%.1e" % CODE_WEIGHT) + '__Wcontent' + str(
-                    "%.1e" % CONTENT_WEIGHT) + '.jpg'
-                utils.save_image_epoch(y, OUTPUT_DIR, img_name, code_img, addpattern=True)
-                print('Save output: ' + img_name)
-                return total_loss
+        global epoch
+        epoch = e
 
         optimizer.step(closure)
