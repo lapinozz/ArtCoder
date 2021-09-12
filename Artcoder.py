@@ -82,38 +82,39 @@ def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
 
     print(torch.cuda.get_device_name(0))
 
-    def debug(string):
-        if False:
-            print(string)
+    def debug(string, time):
+        if True:
+            torch.cuda.synchronize()
+            print(string.format(timer() - time))
 
     def closure(code_target=code_target):
 
         time = timer()
         optimizer.zero_grad()
         y.data.clamp_(0, 1)
-        debug("init: {}".format(timer() - time))
+        debug("init: {}", time)
 
         time = timer()
         features_y = vgg(y)  # feature maps of y extracted from VGG
-        debug("feature: {}".format(timer() - time))
+        debug("feature: {}", time)
         time = timer()
         gram_style_y = [utils.gram_matrix(i) for i in
                         features_y]  # gram matrixs of feature_y in relu1_2,2_2,3_3,4_3
-        debug("gram: {}".format(timer() - time))
+        debug("gram: {}", time)
 
         fc = features_content.relu3_3  # content target in relu4_3
         fy = features_y.relu3_3  # y in relu4_3
 
         time = timer()
         style_loss = 0  # add style_losses in relu1_2,2_2,3_3,4_3
-        for i in [0, 1, 2, 3]:
+        for i in range(len(gram_style)):
             style_loss += mse_loss(gram_style_y[i], gram_style[i])
         style_loss = STYLE_WEIGHT * style_loss
-        debug("style_loss: {}".format(timer() - time))
+        debug("style_loss: {}", time)
 
         time = timer()
         code_y = ss_layer(y)
-        debug("ss_layer: {}".format(timer() - time))
+        debug("ss_layer: {}", time)
 
         if USE_ACTIVATION_MECHANISM == 1:
             time = timer()
@@ -122,13 +123,13 @@ def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
                 ideal=ideal_result,
                 ideal_inv=ideal_result_inv,
                 Dis_b=Dis_b, Dis_w=Dis_w, save=(epoch > 200000))
-            debug("action 1: {}".format(timer() - time))
+            debug("action 1: {}", time)
             time = timer()
             activate_num = error_matrix.sum()
             activate_weight = error_matrix
             code_y = code_y * activate_weight
             code_target = code_target * activate_weight
-            debug("action 2: {}".format(timer() - time))
+            debug("action 2: {}", time)
 
 
             if epoch > 200000:
@@ -141,7 +142,7 @@ def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
         time = timer()
         code_loss = CODE_WEIGHT * mse_loss(code_target, code_y)
         content_loss = CONTENT_WEIGHT * mse_loss(fc, fy)  # content loss
-        debug("code/content loss: {}".format(timer() - time))
+        debug("code/content loss: {}", time)
 
         # tv_loss = TV_WEIGHT * (torch.sum(torch.abs(y[:, :, :, :-1] - y[:, :, :, 1:])) +
         #                        torch.sum(torch.abs(y[:, :, :-1, :] - y[:, :, 1:, :])))
@@ -150,7 +151,7 @@ def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
         total_loss = style_loss + code_loss + content_loss
         #make_dot(total_loss).render("./rnn_torchviz", format="png")
         total_loss.backward(retain_graph=True)
-        debug("backward: {}".format(timer() - time))
+        debug("backward: {}", time)
 
 
         if epoch % 20 == 0:
@@ -165,7 +166,7 @@ def artcoder(STYLE_IMG_PATH, CONTENT_IMG_PATH, CODE_PATH, OUTPUT_DIR,
             averageEpoch = currentTime - epochTimeStart
             epochTimeStart = currentTime
 
-            print("Total time: {}, Average Epoch Time: {}: Global Average Epoch Time: {} Time Left: {}".format(totalElapsedTime, averageEpoch / 20, totalElapsedTime / (epoch + 1), (EPOCHS - epoch) * totalElapsedTime / (epoch + 1)))
+            print("Total time: {:4.5f}, Average Epoch Time: {:4.5f}: Global Average Epoch Time: {:4.5f} Time Left: {:4.5f}".format(totalElapsedTime, averageEpoch / 20, totalElapsedTime / (epoch + 1), (EPOCHS - epoch) * totalElapsedTime / (epoch + 1)))
 
         if epoch % 200 == 0:
             img_name = 'epoch=' + str(epoch) + '__Wstyle=' + str("%.1e" % STYLE_WEIGHT) + '__Wcode=' + str(

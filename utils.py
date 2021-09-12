@@ -94,18 +94,32 @@ def get_action_matrix(img_target, ideal, ideal_inv, module_size=16, IMG_SIZE=592
 
    # print(img_target.shape)
 
-    centers = img_target.squeeze(0).squeeze(0).unfold(0, 16, 16).unfold(1, 16, 16)
-
-    i = centers[..., 5:12, 5:12].mean([-1, -2])
-
-    ons = ideal * i + ideal_inv;
-    offs = ideal_inv  * i;
-
     dis_b = Dis_b / 255;
     dis_w = Dis_w / 255;
 
-    ons = torch.where(ons > dis_w, 0.0, 1.0)
-    offs = torch.where(offs < dis_b, 0.0, 1.0)
+    centers = img_target.squeeze(0).squeeze(0).unfold(0, module_size, module_size).unfold(1, module_size, module_size)
+
+    i = centers[..., 5:12, 5:12].mean([-1, -2])
+
+    #ons = ideal * i + ideal_inv;
+    #offs = ideal_inv  * i;
+
+   # ons = ideal * i + ideal_inv;
+   # offs = ideal_inv  * i;
+
+   # ons = torch.where(ons > dis_w, 0.0, 1.0)
+   # offs = torch.where(offs < dis_b, 0.0, 1.0)
+
+   # errors = offs + ons
+
+  #  ons = i[ideal == 1]
+   # offs = i[ideal == 0]
+
+    #ons = torch.where(i > dis_w, 0.0, 1.0) * ideal
+    #offs = torch.where(i < dis_b, 0.0, 1.0) * ideal_inv
+
+    ons = torch.lt(i, dis_w) * ideal
+    offs = torch.gt(i, dis_b) * ideal_inv
 
     errors = offs + ons
 
