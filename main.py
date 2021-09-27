@@ -3,29 +3,49 @@ import utils as utils
 from Artcoder import artcoder
 from test import test
 
+discrim = 30
+correct = 1
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--style_img_path', help="path to input style target (default: './style/texture1.1.jpg')", type=str,
                         #default='./style/texture3.jpg')
                         #default='./style/texture1.1.jpg')
-                        default='./style/st.jpg')
+                        #default='./style/s2.jpg')
+                        #default='./style/s6.jpg')
+                        #default='./style/s6_2.jpg')
+                        #default='./style/output_375.jpg')
+                        #default='./style/mosaic.jpg')
+                        default='./style/redwave4.jpg')
+                        #default='./style/st.jpg')
+                        #default='./style/wave2.jpg')
+                        #default='./content/boy.jpg')
     parser.add_argument('--content_img_path', help="path to input content target (default: './content/boy.jpg')", type=str,
                         #default='./content/lapinozz.jpg')
-                        default='./content/boy.jpg')
+                        #default='./content/boy.jpg')
+                        default='./content/borna.jpg')
+                        #default='./content/borna_2.jpg')
     parser.add_argument('--code_img_path', help="path to input code target (default: './code/boy.jpg')", type=str,
                         default='./code/boy.jpg')
     parser.add_argument('--output_dir', help='path to save output stylized QR code', type=str,
                         default='./output/')
     parser.add_argument('--learning_rate',
                         help='learning rate (default: 0.01)',
+                        #type=int, default=0.001)
                         type=int, default=0.005)
+                        #type=int, default=0.01)
+                        #type=int, default=0.02)
+                        #type=int, default=0.04)
+    #parser.add_argument('--style_weight', help='style_weight', type=int, default=1e15)
     parser.add_argument('--style_weight', help='style_weight', type=int, default=1e15)
-    parser.add_argument('--content_weight', help='content_weight', type=int, default=1e8)
+    #parser.add_argument('--content_weight', help='content_weight', type=int, default=1e8)
+    parser.add_argument('--content_weight', help='content_weight', type=int, default=1e2)
+    #parser.add_argument('--code_weight', help='code_weight', type=int, default=1e12)
     parser.add_argument('--code_weight', help='code_weight', type=int, default=1e12)
 
     parser.add_argument('--module_size',
                         help='the resolution of each square module of a QR code (default: 16)',
-                        type=int, default=16)
+                        type=int, default=4)
     parser.add_argument('--module_number',
                         help='Number of QR code modules per side (default: 37)',
                         type=int, default=37)
@@ -34,19 +54,23 @@ if __name__ == '__main__':
     parser.add_argument('--discriminate_b',
                         help="for black modules, pixels' gray values under discriminate_b will be discriminated to error modules to activate sub-code-losses (discriminate_b in [0-128])",
                         type=int,
-                        default=70)
+                        #default=70)
+                        default=discrim)
     parser.add_argument('--discriminate_w',
                         help="for white modules, pixels' gray values over discriminate_w will be discriminated to error modules to activate sub-code-losses (discriminate_w in [128-255])",
                         type=int,
-                        default=180)
+                        #default=180)
+                        default=255-discrim)
     parser.add_argument('--correct_b',
                         help="for black module, correct error modules' gray value to correct_b (correct_b < discriminate_b)",
                         type=int,
-                        default=40)
+                        #default=40)
+                        default=correct)
     parser.add_argument('--correct_w',
                         help="for white module, correct error modules' gray value to correct_w (correct_w > discriminate_w)",
                         type=int,
-                        default=220)
+                        #default=220)
+                        default=255-correct)
     parser.add_argument('--use_activation_mechanism',
                         help="whether to use the activation mechanism (1 means use and other numbers mean not)",
                         type=int,

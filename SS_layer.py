@@ -13,12 +13,12 @@ import utils
 
 
 class SSlayer(nn.Module):
-    def __init__(self, requires_grad=False):
+    def __init__(self, requires_grad, moduleSize):
         super(SSlayer, self).__init__()
 
-        cov_module = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=16, stride=16, padding=0, bias=False)
+        cov_module = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=moduleSize, stride=moduleSize, padding=0, bias=False)
 
-        weight = utils.get_3DGauss()  # [16,16]
+        weight = utils.get_3DGauss(moduleSize=moduleSize)  # [16,16]
         weight = weight.unsqueeze(0).unsqueeze(0)  # [1,1,16,16]
         weight = torch.cat([weight, weight, weight], dim=1)  # [1,3,16,16]
         cov_module.weight = nn.Parameter(weight)
