@@ -3,8 +3,8 @@ import utils as utils
 from Artcoder import artcoder
 from test import test
 
-discrim = 30
-correct = 1
+discrim = 60
+correct = 30
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -16,17 +16,20 @@ if __name__ == '__main__':
                         #default='./style/s6_2.jpg')
                         #default='./style/output_375.jpg')
                         #default='./style/mosaic.jpg')
-                        default='./style/redwave4.jpg')
+                        #default='./style/redwave4.jpg')
                         #default='./style/st.jpg')
                         #default='./style/wave2.jpg')
+                        default='./style/ironman4.1.jpg')
                         #default='./content/boy.jpg')
     parser.add_argument('--content_img_path', help="path to input content target (default: './content/boy.jpg')", type=str,
                         #default='./content/lapinozz.jpg')
                         #default='./content/boy.jpg')
-                        default='./content/borna.jpg')
+                        #default='./content/borna.jpg')
+                        default='./content/rose.png')
                         #default='./content/borna_2.jpg')
     parser.add_argument('--code_img_path', help="path to input code target (default: './code/boy.jpg')", type=str,
-                        default='./code/boy.jpg')
+                        #default='./code/boy.jpg')
+                        default='./formation.png')
     parser.add_argument('--output_dir', help='path to save output stylized QR code', type=str,
                         default='./output/')
     parser.add_argument('--learning_rate',
@@ -39,13 +42,13 @@ if __name__ == '__main__':
     #parser.add_argument('--style_weight', help='style_weight', type=int, default=1e15)
     parser.add_argument('--style_weight', help='style_weight', type=int, default=1e15)
     #parser.add_argument('--content_weight', help='content_weight', type=int, default=1e8)
-    parser.add_argument('--content_weight', help='content_weight', type=int, default=1e2)
+    parser.add_argument('--content_weight', help='content_weight', type=int, default=1e8)
     #parser.add_argument('--code_weight', help='code_weight', type=int, default=1e12)
     parser.add_argument('--code_weight', help='code_weight', type=int, default=1e12)
 
     parser.add_argument('--module_size',
                         help='the resolution of each square module of a QR code (default: 16)',
-                        type=int, default=4)
+                        type=int, default=8)
     parser.add_argument('--module_number',
                         help='Number of QR code modules per side (default: 37)',
                         type=int, default=37)
