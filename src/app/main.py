@@ -1,12 +1,21 @@
+import json
 import asyncio
 import http.server
 import socketserver
 from threading import Thread
 
+import sass
 import websockets
 
+from session import Session 
+from trainer import Trainer 
+
 PORT = 8056
-DIRECTORY = "frontend"
+DIRECTORY = "./src/app/frontend"
+
+sass.compile(dirname=(DIRECTORY + '/scss', DIRECTORY + '/css'), output_style='compressed')
+
+socketserver.TCPServer.allow_reuse_address = True
 
 class Handler(http.server.SimpleHTTPRequestHandler):
 	def __init__(self, *args, **kwargs):
@@ -23,20 +32,13 @@ thread.start()
 
 print("Server has started. Continuing..")
 
-async def onMessage(message):
-	print(message)
+trainer = Trainer()
+trainer.start()
 
-firstConnection = True
 async def onConnection(websocket, path):
-	global firstConnection
-	if firstConnection:
-		firstConnection = False
-		await websocket.send("reload")
-	
-	await websocket.send("rwar")
 
-	async for message in websocket:
-		onMessage(message)
+	session = Session(websocket, trainer)
+	await session.start()
 
 start_server = websockets.serve(onConnection, 'localhost', PORT + 1)
 
@@ -48,9 +50,3 @@ try:
 	asyncio.get_event_loop().run_forever()
 except KeyboardInterrupt as e:
 	quit()
-
-#while True:
-	#print("running")
-
-#thread.exit()
-#thread.join()

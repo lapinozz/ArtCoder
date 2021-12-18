@@ -93,11 +93,13 @@ def prepareContent(contentImg, moduleCount, moduleSize, outputDir):
     canny = cv2.resize(canny, (0,0), fx=scale, fy=scale)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     canny = cv2.dilate(canny, kernel)
-    Image.fromarray(canny).convert('L').save(os.path.join(outputDir, "content_edges.png"))
+    edgesImg = Image.fromarray(canny).convert('L')
+    edgesImg.save(os.path.join(outputDir, "content_edges.png"))
     canny = canny.astype(np.float32) / 255
 
     sal = getSaliency(np.array(contentImg)[...,::-1].astype(np.float32), moduleSize, 15, 100)
-    Image.fromarray((sal).astype('uint8') * 255).save(os.path.join(outputDir, "content_saliency.png"))
+    saliencyImg = Image.fromarray((sal).astype('uint8') * 255)
+    saliencyImg.save(os.path.join(outputDir, "content_saliency.png"))
 
     width, height = contentImg.size
     heu = np.fromfunction(lambda i, j: (i*width + j*height - i*i - j*j) / width*width*0.5, (width, height), dtype=np.float32)
@@ -105,12 +107,13 @@ def prepareContent(contentImg, moduleCount, moduleSize, outputDir):
     heu = (heu - minH)/(np.max(heu) - minH)
 
     weights = canny*0.67 + sal*0.23 + heu*0.1
-    Image.fromarray(weights * 255).convert('L').save(os.path.join(outputDir, "content_weights.png"))
+    weightsImg = Image.fromarray(weights * 255).convert('L')
+    weightsImg.save(os.path.join(outputDir, "content_weights.png"))
 
     weights = poolingOverlap(weights, (moduleSize, moduleSize), None, 'mean')
     Image.fromarray(weights * 255).convert('L').save(os.path.join(outputDir, "content_weights_pooled.png"))
 
     print("content prepared: {}s".format(timer() - startTime))
 
-    return contentImg, contentModules, weights
+    return contentImg, contentModules, weights, edgesImg, saliencyImg, weightsImg
 

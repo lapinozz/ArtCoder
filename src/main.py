@@ -1,7 +1,6 @@
 import argparse
 import utils as utils
 from Artcoder import artcoder
-from test import test
 
 discrim = 60
 correct = 30
@@ -81,8 +80,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     utils.print_options(opt=args)
-
-    #test()
 
     artcoder(STYLE_IMG_PATH=args.style_img_path, CONTENT_IMG_PATH=args.content_img_path, CODE_PATH=args.code_img_path,
              OUTPUT_DIR=args.output_dir, LEARNING_RATE=args.learning_rate, CONTENT_WEIGHT=args.content_weight,

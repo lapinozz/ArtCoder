@@ -6,7 +6,7 @@ from timeit import default_timer as timer
 def segmentData(data, level, minVer=1, maxVar=40):
     startTime = timer()
 
-    segmentationGenerator = open("./segmentation/segmentation_generator.js", "r").read()
+    segmentationGenerator = open("./src/segmentation/segmentation_generator.js", "r").read()
     segmentationGenerator = segmentationGenerator.replace("$DATA", data)
     segmentationGenerator = segmentationGenerator.replace("$LEVEL", str(level))
     segmentationGenerator = segmentationGenerator.replace("$MIN_VER", str(minVer))

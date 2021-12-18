@@ -1,0 +1,16 @@
+{
+  "restartable": "rs",
+  "ignore": [
+    ".git",
+    "sessions",
+    "data"
+  ],
+  "verbose": true,
+  "execMap": {
+    "py": "python3"
+  },
+  "events": {
+    "restart": "echo 'display notification \"App restarted due to:\n'$FILENAME'\" with title \"nodemon\"'"
+  },
+  "ext": "py,js,html,scss"
+}
