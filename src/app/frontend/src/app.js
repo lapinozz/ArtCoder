@@ -842,7 +842,8 @@ class App
 			const wrapper = makeDiv({
 				parent: scroll,
 				class: 'wrapper ' + (selectable ? 'selectable' : ''),
-				onclick: selectable ? () => imgList.onSelect(image) : null
+				onclick: selectable ? () => imgList.onSelect(image) : null,
+				title: image.path.split('/').splice(-1)
 			});
 
 			const img = makeDiv('img', {
