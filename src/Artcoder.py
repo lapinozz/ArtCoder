@@ -24,7 +24,7 @@ from saveGif import makeGif, saveGif
 epoch = 0
 output = None
 
-def artcoder(style_img, content_img, code_img, OUTPUT_DIR, version,
+async def artcoder(style_img, content_img, code_img, OUTPUT_DIR, version,
              LEARNING_RATE=0.01, CONTENT_WEIGHT=1e8, STYLE_WEIGHT=1e15, CODE_WEIGHT=1e12, moduleSize=16, moduleNum=37,
              EPOCHS=50000, discrim=75, correct=55, USE_ACTIVATION_MECHANISM=True):
 

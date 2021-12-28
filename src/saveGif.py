@@ -25,7 +25,7 @@ def saveGif(outputDir, inRegex="epoch_epoch=*.jpg"):
 
 def makeGif(imgs, outputDir):
     durations = [100] * len(imgs)
-    durations.append(5000)
+    durations.append(3000)
 
     if False:
         font = ImageFont.load_default()

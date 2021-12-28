@@ -36,7 +36,6 @@ trainer = Trainer()
 trainer.start()
 
 async def onConnection(websocket, path):
-
 	session = Session(websocket, trainer)
 	await session.start()
 

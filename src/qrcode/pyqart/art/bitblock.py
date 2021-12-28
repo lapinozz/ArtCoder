@@ -29,7 +29,8 @@ def _create_vs(dbc, ecbc):
         print('Done')
         _VS_CACHE[dbc] = vs
     else:
-        print('found in cache.')
+        #print('found in cache.')
+        pass
     return _copy(dbc)
 
 

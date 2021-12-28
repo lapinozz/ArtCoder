@@ -28,11 +28,6 @@ class App
 			class: 'sections',
 		});
 
-		const profilesRoot = makeDiv('div', {
-			parent: appDiv,
-			class: 'profiles-root',
-		});
-
 		const sectionIds = ['data', 'contents', 'basic', 'styles', 'styled'];
 		const sections = {};
 
@@ -84,7 +79,10 @@ class App
 			sections[error.state].onError(error);
 		});
 
-		this.setupProfiles(profilesRoot);
+		const sidebarContainer = this.setupSidebar(appDiv);
+
+		this.setupSettings(sidebarContainer);
+		this.setupProfiles(sidebarContainer);
 
 		this.trigger('settingsUpdate');
 	}
@@ -246,26 +244,61 @@ class App
 		}
 	}
 
-	setupProfiles(profilesRoot)
+	setupSidebar(appDiv)
 	{
-		const containerDiv = makeDiv('div', {
-			parent: profilesRoot,
-			class: 'container section',
+		const sidebarRoot = makeDiv('div', {
+			parent: appDiv,
+			class: 'sidebar-root',
 		});
 
-		profilesRoot.classList.add('open');
+		const sidebarContainer = makeDiv('div', {
+			parent: sidebarRoot,
+			class: 'container',
+		});
 
 		const toggleDiv = makeDiv('div', {
-			parent: containerDiv,
+			parent: sidebarContainer,
 			class: 'toggle',
 			onclick: () => 
 			{
-				profilesRoot.classList.toggle('open');
+				sidebarRoot.classList.toggle('open');
 			}
 		});
 
+		sidebarRoot.classList.add('open');
+
+		return sidebarContainer;
+	}
+
+	setupSettings(sidebarContainer)
+	{
+		const sectionDiv = makeDiv('div', {
+			parent: sidebarContainer,
+			class: 'section',
+		});
+
 		const titleDiv = makeDiv('div', {
-			parent: containerDiv,
+			parent: sectionDiv,
+			class: 'title',
+			innerText: 'Settings'
+		});
+
+		const settingsDiv = makeDiv('div', {
+			parent: sectionDiv,
+			class: 'settings',
+		});
+
+	}
+
+	setupProfiles(sidebarContainer)
+	{
+		const sectionDiv = makeDiv('div', {
+			parent: sidebarContainer,
+			class: 'section',
+		});
+
+		const titleDiv = makeDiv('div', {
+			parent: sectionDiv,
 			class: 'title',
 			innerText: 'Profiles'
 		});
@@ -276,7 +309,7 @@ class App
 		});
 
 		const profilesDiv = makeDiv('div', {
-			parent: containerDiv,
+			parent: sectionDiv,
 			class: 'profiles',
 		});
 
@@ -718,7 +751,7 @@ class App
 
 		this.on('queue', (data) => 
 		{
-			let {position, status} = data;
+			let {position, length, status} = data;
 
 			if(!this.getSetting('training'))
 			{
@@ -729,10 +762,11 @@ class App
 
 			if(status == 'waiting')
 			{
-				infos['queue'].setValue(`Queued (${position}/${length})`);
+				infos['queue'].setValue(`Queued (#${position + 1} of ${length})`);
 			}
 			else
 			{
+
 				infos['queue'].setValue(capitalizeFirstLetter(status));
 			}
 		});

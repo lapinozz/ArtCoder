@@ -1,10 +1,13 @@
 import sys
+import time
 import json
+import queue
 import base64
 import ctypes
 import asyncio
 import threading
 import traceback
+import websockets
 
 from os import walk
 from io import BytesIO
@@ -43,6 +46,10 @@ class Session:
 		self.ws = ws
 		self.trainer = trainer
 
+
+		self.senderLock = threading.Lock()
+		self.senderQueue = queue.Queue()
+
 	async def start(self):
 		self.settings = {}
 
@@ -67,13 +74,18 @@ class Session:
 		self.currentUpdate = None
 
 		task1 = asyncio.ensure_future(self.updateReceive())
-		task2 = asyncio.ensure_future(self.run())
+		task2 = asyncio.ensure_future(self.sender())
 		done, pending = await asyncio.wait(
 			[task1, task2],
-			return_when=asyncio.ALL_COMPLETED,
+			return_when=asyncio.FIRST_COMPLETED,
 		)
 		for task in pending:
 			task.cancel()
+
+		self.end()
+
+	def end(self):
+		killThread(self.updateThread)
 
 	async def updateReceive(self):
 		async for msg in self.ws:
@@ -121,8 +133,6 @@ class Session:
 	async def onUpdate(self, id):
 		index = self.getUpdateIndex(id)
 
-		print('update', self.updateDirty)
-
 		if self.updateThread != None:
 
 			currentIndex = self.getUpdateIndex(self.currentUpdate)
@@ -144,17 +154,13 @@ class Session:
 				await self.sendMessage(i + 'Dirty')
 
 		def run():
-			self.loop = asyncio.new_event_loop()
-			
 			try:
 				for i in self.updates[index::]:
 					self.currentUpdate = i[0]
 					func = getattr(self, 'on' + self.currentUpdate.capitalize() + 'Updated')
 					self.updateDirty[self.currentUpdate] = False
 					if func:
-						self.loop.run_until_complete(func())
-
-				self.loop.close()
+						asyncio.run(func())
 
 				self.currentUpdate = None
 				self.updateThread = None
@@ -163,10 +169,10 @@ class Session:
 					traceback.print_exc()
 					error = {'message': str(e), 'state': self.currentUpdate}
 					print('error', error)
-					self.loop.run_until_complete(self.sendMessage('error', {'error': error}))
-					
+					asyncio.run(self.sendMessage('error', {'error': error}))
+				#raise
 			finally:
-				self.loop.close()
+				pass
 
 		self.updateThread = threading.Thread(target=run, args=())
 		self.updateThread.daemon = True
@@ -174,10 +180,17 @@ class Session:
 
 	async def sendMessage(self, event, data = {}):
 		data['event'] = event
-		await self.ws.send(json.dumps(data))
+		jsonData = json.dumps(data)
+		self.senderQueue.put(jsonData)
 
-	async def run(self):
-		await asyncio.sleep(1000000)
+	async def sender(self):
+		while True:
+			try:
+				item = self.senderQueue.get_nowait()
+				await self.ws.send(item)
+				self.senderQueue.task_done()
+			except queue.Empty as e:
+				await asyncio.sleep(0.50)
 
 	async def sendImageList(self, id):
 		files = []
@@ -293,7 +306,7 @@ class Session:
 		self.correct = float(settings['correct'])
 
 		from timeit import default_timer as timer
-		for output in artcoder(self.styleImg, self.contentImg, self.codeImg, self.sessionPath, self.version, 
+		async for output in artcoder(self.styleImg, self.contentImg, self.codeImg, self.sessionPath, self.version, 
 							moduleSize=self.moduleSize, moduleNum=self.moduleNum, EPOCHS=self.epochs, LEARNING_RATE=self.learningRate,
 							CONTENT_WEIGHT=self.contentWeight, STYLE_WEIGHT=self.styleWeight, CODE_WEIGHT=self.codeWeight,
 							discrim=self.discriminant, correct=self.correct):

@@ -34,9 +34,6 @@ class Training:
 		self.position = 0
 
 	def finish(self, newState = DONE):
-		if self.state == RUNNING:
-			killThread(self.trainer.thread)
-		
 		self.state = newState
 
 	def isWaiting(self):
@@ -56,6 +53,9 @@ class Training:
 
 	def isFinished(self):
 		return self.isDone() or self.isCrashed() or self.isCanceled()
+
+	def ready(self):
+		self.state = RUNNING
 
 	async def train(self):
 		self.state = RUNNING
@@ -90,8 +90,7 @@ class Trainer:
 
 	def start(self):
 		def _run():
-			self.loop = asyncio.new_event_loop()
-			self.loop.run_until_complete(self.run())
+			asyncio.run(self.run())
 
 		self.thread = threading.Thread(target=_run, args=())
 		self.thread.daemon = True
@@ -109,7 +108,7 @@ class Trainer:
 						if len(self.queue) > 0:
 							break
 
-					time.sleep(0.25)
+					await asyncio.sleep(0.25)
 
 				training = None
 				with self.lock:
@@ -118,7 +117,11 @@ class Trainer:
 				if not training or not training.isWaiting():
 					continue
 
-				await training.train()
+				training.ready()
+
+				while training.isRunning():
+					await asyncio.sleep(0.5)
+
 			except:
 				traceback.print_exc()
 
@@ -127,25 +130,13 @@ class Trainer:
 		training = Training(self, session)
 		self.enqueue(training)	
 
-		try:	
-			while not training.isFinished():
-
-				data = {'position': training.position, 'length': len(self.queue)}
-				if training.isWaiting():
-					data['status'] = 'waiting'
-				elif training.isRunning():
-					data['status'] = 'running'
-
-				await session.sendMessage('queue', {'queue': data})
-			
-				time.sleep(1)
-		except:
-			training.finish(CANCELED)
-			raise
-		finally:
-			data = {}
-
-			if training.isDone():
+		async def sendQueueUpdate():
+			data = {'position': training.position, 'length': len(self.queue)}
+			if training.isWaiting():
+				data['status'] = 'waiting'
+			elif training.isRunning():
+				data['status'] = 'running'
+			elif training.isDone():
 				data['status'] = 'done'
 			elif training.isCrashed():
 				data['status'] = 'crashed'
@@ -153,6 +144,20 @@ class Trainer:
 				data['status'] = 'canceled'
 
 			await session.sendMessage('queue', {'queue': data})
+
+		try:	
+			while not training.isFinished():
+				if training.isRunning():
+					await sendQueueUpdate()
+					await training.train()
+				else:
+					await sendQueueUpdate()
+					await asyncio.sleep(1)
+		except:
+			training.finish(CANCELED)
+			raise
+		finally:
+			await sendQueueUpdate()
 
 
 

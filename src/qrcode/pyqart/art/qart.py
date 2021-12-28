@@ -109,9 +109,7 @@ class QArtist(QrPainter):
                         continue
 
                 if not self._only_data:
-                    print('Create BitBlock', '{i}/{bc}...'.format(
-                        i=i+1, bc=args.bc,
-                    ), end='', flush=True)
+                    #print('Create BitBlock', '{i}/{bc}...'.format(i=i+1, bc=args.bc,), end='', flush=True)
                     block = BitBlock(bits, di, dbc, eci, ecbc)
                 else:
                     block = Bits.copy_from(bits, di, dbc)
@@ -203,11 +201,12 @@ class QArtist(QrPainter):
                     value -= 8
                 numbers += str(value).rjust(count // 3, '0')
 
-            print('Error count', error_count, end='')
+            #print('Error count', error_count, end='')
             if error_count == 0:
-                print(', send to printer.')
+                #print(', send to printer.')
                 data_bits.extend(ec_bits)
                 self._bits = data_bits
                 return data_bits
             else:
-                print(', restart.')
+                #print(', restart.')
+                pass
