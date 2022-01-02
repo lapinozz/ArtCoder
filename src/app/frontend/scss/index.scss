@@ -31,6 +31,7 @@ body
 	{
 		position: relative;
 		min-width: 0;
+		z-index: -10;
 		transition: min-width 0.25s;
 		background-color: #171717;
 
@@ -114,49 +115,57 @@ body
 					}
 				}
 			}
-
-			.profiles
-			{
-				.profile
-				{
-					position: relative;
-					width: 100%;
-					display: flex;
-					background-color: #222;
-					padding: 0.3rem;
-				}
-
-				.name
-				{
-					flex-grow: 1;
-
-					&:not(:active)
-					{
-						border: none;
-						background: none;
-					}
-				}
-
-				.save,
-				.load,
-				.delete
-				{
-					margin-left: 0.5rem;
-
-					&:hover
-					{
-						cursor: pointer;
-						filter: brightness(1.4);
-					}
-				}
-
-				.delete
-				{
-				    font-family: "Font Awesome 6 Free";
-				    font-weight: 900;
-				}
-			}
 		}
+	}
+}
+
+.profiles
+{
+	.profile
+	{
+		position: relative;
+		width: 100%;
+		display: flex;
+		background-color: #222;
+		padding: 0.3rem;
+	}
+
+	.name
+	{
+		flex-grow: 1;
+
+		&:not(:active)
+		{
+			border: none;
+			background: none;
+		}
+	}
+
+	.save,
+	.load,
+	.delete
+	{
+		margin-left: 0.5rem;
+
+		&:hover
+		{
+			cursor: pointer;
+			filter: brightness(1.4);
+		}
+	}
+
+	.delete
+	{
+	    font-family: "Font Awesome 6 Free";
+	    font-weight: 900;
+	}
+}
+
+.settings
+{
+	.reset
+	{
+		margin: 0.5rem;
 	}
 }
 
@@ -168,7 +177,79 @@ input
   	border-color: var(--inputBorder);
   	border-width: 1px;
   	border-radius: 5px;
+
+  	&[type='button']:hover
+  	{
+		filter: brightness(1.4);
+		cursor: pointer;
+  	}
 }	
+
+.help
+{
+	position: relative;
+	display: inline-block;
+	border: gray 1px solid;
+	border-radius: 100%;
+	width: 1.15rem;
+	height: 1.15rem;
+	margin-right: 0.25rem;
+	z-index: 10;
+
+	.fa-info
+	{
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 0.7rem;
+		color: gray;
+	}
+
+	.help-text
+	{
+		display: none;
+		z-index: 10;
+		position: absolute;
+		width: max-content;
+		top: 100%;
+		left: 50%;
+		padding: 0.25rem;
+		border-radius: 0.5rem;
+		margin-top: 1rem;
+		background: #9d9d9d;
+		color: #1e1e1e;
+		margin-left: -1rem;
+
+
+		&::after
+		{
+			content: " ";
+			left: 1rem;
+			position: absolute;
+			bottom: 100%;
+			margin-left: -5px;
+			border-width: 5px;
+			border-style: solid;
+			border-color: transparent transparent #9d9d9d transparent;
+		}
+	}
+
+	&:hover
+	{
+		border-color: white;
+
+		.fa-info
+		{
+			color: white;
+		}
+
+		.help-text
+		{
+			display: block;
+		}		
+	}
+}
 
 .number-input
 {
@@ -236,6 +317,15 @@ input
 		background-color: var(--header);
 		padding: 0.5rem;
 		font-size: 1.1rem;
+		z-index: 100;
+		position: relative;
+		display: flex;
+
+		.help
+		{
+			margin-left: 0.5rem;
+			margin-top: 0.1rem;
+		}
 	}
 
 	.error
@@ -290,6 +380,12 @@ input
 				{
 					max-width: 2rem;
 				}
+			}
+
+			.help
+			{
+				top: 50%;
+				transform: translateY(-50%);
 			}
 		}
 
@@ -399,6 +495,7 @@ input
 				.label
 				{
 					display: inline-block;
+					margin-right: auto;
 				}
 
 				input

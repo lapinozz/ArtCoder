@@ -29,13 +29,17 @@ class App
 		});
 
 		const sectionIds = ['data', 'contents', 'basic', 'styles', 'styled'];
-		const sections = {};
+		const sections = {
+			data: {help: 'Enter the data to be encoded into the Qr code, it can some text or an url.\nThe data will be split into chunks to be as compact as possible.\nEach chunk might be encoded in a different way to maximize compression.\n\nThe higher the version of a Qr code the bigger it will be, and consequently the more space it will have.'},
+			contents: {help: 'Select one of the test image or upload your own.'},
+			basic: {help: 'Basic processing of the image, from left to right:\n  • Edges detection\n  • Saliency detection (It tries to detect the important areas of the image)\n  • Combination of the edges and saliency\n  • Image is converted into low resolution black and white squares\n  • Basic "normal" Qr code but with the squares rearrenged to try and for the image\n  • The basic Qr code with the target image as background\n\nNote that those Qr code might need to have a white border added aroudn them to scan correctly.'},
+			styles: {help: 'Select one of the test image or upload your own.'},
+			styled: {help: 'The AI will train to generate an image that blends the style, the content and the code.\nEvery 200 epochs(iteration) an image is generated.\nA gif of all the images in sequence is also generated.'},
+		};
 
-		for(const sectionId of sectionIds)
+		for(const sectionId in sections)
 		{
-			const section = {};
-
-			sections[sectionId] = section;
+			const section = sections[sectionId];
 
 			section.rootDiv = makeDiv('div', {
 				parent: sectionsDiv,
@@ -47,6 +51,25 @@ class App
 				class: 'title',
 				innerText: capitalizeFirstLetter(sectionId)
 			});
+
+			if(section.help)
+			{
+				const helpDiv = makeDiv('div', {
+					parent: section.titleDiv,
+					class: 'help',
+				});
+
+				const iconDiv = makeDiv('div', {
+					parent: helpDiv,
+					class: 'fas fa-info',
+				});
+
+				const textDiv = makeDiv('div', {
+					parent: helpDiv,
+					class: 'help-text',
+					innerText: section.help
+				});
+			}
 
 			section.errorDiv = makeDiv('div', {
 				parent: section.rootDiv,
@@ -76,7 +99,8 @@ class App
 		this.on('error', (error) => 
 		{
 			console.error(error);
-			sections[error.state].onError(error);
+			const section = sections[error.state];
+			section && section.onError(error);
 		});
 
 		const sidebarContainer = this.setupSidebar(appDiv);
@@ -165,6 +189,25 @@ class App
 				class: 'option',
 			});
 
+			if(option.help)
+			{
+				const helpDiv = makeDiv('div', {
+					parent: optionDiv,
+					class: 'help',
+				});
+
+				const iconDiv = makeDiv('div', {
+					parent: helpDiv,
+					class: 'fas fa-info',
+				});
+
+				const textDiv = makeDiv('div', {
+					parent: helpDiv,
+					class: 'help-text',
+					innerText: option.help
+				});
+			}
+
 			const labelDiv = makeDiv('label', {
 				parent: optionDiv,
 				class: 'label',
@@ -207,6 +250,12 @@ class App
 					inputDiv.value = this.getSetting(option.id) || option.default;
 					inputDiv.onchange();
 				});
+
+				this.on('resetDefault', () =>
+				{
+					inputDiv.value = option.default;
+					inputDiv.onchange();
+				});
 			}
 			else if(option.type == 'play')
 			{
@@ -232,6 +281,12 @@ class App
 						value = option.default;
 					}
 
+					update();
+				});
+
+				this.on('resetDefault', () =>
+				{
+					value = option.default;
 					update();
 				});
 
@@ -286,6 +341,18 @@ class App
 		const settingsDiv = makeDiv('div', {
 			parent: sectionDiv,
 			class: 'settings',
+		});
+
+		const resetDiv = makeDiv('input', {
+			parent: settingsDiv,
+			class: 'reset',
+			value: 'Reset',
+			type: 'button',
+			title: "Reset all to default",
+			onclick: () =>
+			{
+				this.trigger('resetDefault');
+			}
 		});
 
 	}
@@ -465,9 +532,9 @@ class App
 		});
 
 		const options = [
-			{id: 'level', label: 'Level', type: 'number', min: '1', max: '3', default: '2'},
-			{id: 'minVersion', label: 'Minimum Version', type: 'number', min: '1', max: '40', default: '5'},
-			{id: 'versionPadding', label: 'Version Padding', type: 'number', min: '0', max: '39', default: '0'},
+			{id: 'level', label: 'Level', type: 'number', min: '1', max: '3', default: '1', help: 'The level of a Qr code affects how resilient it is to damage.\nAt level 3 up to 30% of the code can be damaged and it will still work.\nHigher level also makes you data take more space, use carefully.'},
+			{id: 'minVersion', label: 'Minimum Version', type: 'number', min: '1', max: '40', default: '6', help: 'The minimum version for the code.'},
+			{id: 'versionPadding', label: 'Version Padding', type: 'number', min: '0', max: '39', default: '5', help: 'The version padding is added to the computed version.\nThe more padding the more the code can be reorganized to fit the image.'},
 		];
 
 		this.makeOptions(optionsDiv, options);
@@ -593,9 +660,9 @@ class App
 		const {optionsDiv} = imgList;
 
 		const options = [
-			{id: 'moduleSize', label: 'Module Size', type: 'number', min: '4', max: '16', default: '8', step: '4'},
-			{id: 'brightness', label: 'Brightness', type: 'number', min: '0.5', max: '2', default: '1.3', step: '0.05'},
-			{id: 'contrast', label: 'Contrast', type: 'number', min: '0.5', max: '2', default: '1.15', step: '0.05'},
+			{id: 'moduleSize', label: 'Module Size', type: 'number', min: '4', max: '16', default: '8', step: '4', help: 'The pixel size of each square in the Qr code.\nMore pixels per modules means the image will be bigger and have more resolution.\nBut it also means the it will take longer to generate.'},
+			{id: 'brightness', label: 'Brightness', type: 'number', min: '0.5', max: '2', default: '1', step: '0.05', help: 'Brightness adjustement to the content image.'},
+			{id: 'contrast', label: 'Contrast', type: 'number', min: '0.5', max: '2', default: '1', step: '0.05', help: 'Contrast adjustement to the content image.'},
 		];
 
 		this.makeOptions(optionsDiv, options);
@@ -640,14 +707,14 @@ class App
 		const {optionsDiv} = imgList;
 
 		const options = [
-			{id: 'training', 		label: 'Training', 				type: 'play', default: true},
-			{id: 'epochs', 			label: 'Max Epochs', 			type: 'number', min: '200', max: '50000', default: '800', step: '200'},
-			{id: 'learningRate', 	label: 'Learning Rate', 		type: 'number', min: '0.005', max: '0.1', default: '0.01', step: '0.005'},
-			{id: 'contentWeight', 	label: 'Content Weight (10^x)', type: 'number', min: '1', max: '30', default: '8', step: '1'},
-			{id: 'styleWeight', 	label: 'Style Weight (10^x)', 	type: 'number', min: '1', max: '30', default: '15', step: '1'},
-			{id: 'codeWeight', 		label: 'Code Weight (10^x)', 	type: 'number', min: '1', max: '30', default: '12', step: '1'},
-			{id: 'discriminant', 	label: 'Discriminant', 			type: 'number', min: '1', max: '127', default: '75', step: '1'},
-			{id: 'correct', 		label: 'Correct', 				type: 'number', min: '1', max: '127', default: '55', step: '1'},
+			{id: 'training', 		label: 'Training', 				type: 'play', default: true, help: 'Play/Pause the training process.'},
+			{id: 'epochs', 			label: 'Max Epochs', 			type: 'number', min: '200', max: '50000', default: '800', step: '200', help: 'How many iteration to train the style on.\nThe more epochs the longer it takes.'},
+			{id: 'learningRate', 	label: 'Learning Rate', 		type: 'number', min: '0.005', max: '0.1', default: '0.01', step: '0.005', help: 'How fast the training adapts to fit the image.\nA too high value will lead to the image not styling correctly.'},
+			{id: 'contentWeight', 	label: 'Content Weight (10^x)', type: 'number', min: '1', max: '30', default: '8', step: '1', help: 'How strongly the training tries to make the final image fit the content image.'},
+			{id: 'styleWeight', 	label: 'Style Weight (10^x)', 	type: 'number', min: '1', max: '30', default: '15', step: '1', help: 'How strongly the training tries to make the final image fit the style image.'},
+			{id: 'codeWeight', 		label: 'Code Weight (10^x)', 	type: 'number', min: '1', max: '30', default: '12', step: '1', help: 'How strongly the training tries to make the final image fit the code.'},
+			{id: 'discriminant', 	label: 'Discriminant', 			type: 'number', min: '1', max: '127', default: '70', step: '1', help: 'Affects how much contrast the modules need to have to be valid'},
+			{id: 'correct', 		label: 'Correct', 				type: 'number', min: '1', max: '127', default: '40', step: '1', help: 'Affects how much contrast the modules need to have to be valid, but in a different way.'},
 		];
 
 		this.makeOptions(optionsDiv, options);
